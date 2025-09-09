@@ -1,3 +1,4 @@
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -372,7 +373,7 @@
             <h1>
                 <i class="fas fa-coins"></i> Cash Flow Management
             </h1>
-            <a href="{{ route('treasurer.home') }}" class="back-btn" onclick="goToDashboard()">
+            <a href="{{ route('treasurer.home') }}" class="back-btn" id="backBtn">
                 <i class="fas fa-arrow-left"></i>
                 Back to Dashboard
             </a>
@@ -416,7 +417,7 @@
                         <table class="finance-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
+                                    <th style="width: 50px; text-align:center;">#</th>
                                     <th style="width: 200px;">Name</th>
                                     <th style="width: 120px;">Tithes (₱)</th>
                                     <th style="width: 120px;">Offering (₱)</th>
@@ -459,7 +460,7 @@
                         <table class="finance-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
+                                    <th style="width: 50px; text-align: center;">#</th>
                                     <th style="width: 300px;">Expense Name</th>
                                     <th style="width: 150px;">Amount (₱)</th>
                                     <th style="width: 60px;">Action</th>
@@ -513,7 +514,7 @@
                     Generate Report
                 </button>
 
-                <button class="btn btn-success w-full mt-4" onclick="saveAllRecordsToDatabase()">
+                <button class="btn w-full mt-4" id="saveBtn">
                     <i class="fas fa-save"></i> Save All Records
                 </button>
 
@@ -531,833 +532,423 @@
         </div>
     </div>
 
-<script>
-    function createNewIncomeRecord(element) {
-        const row = element.closest('tr');
-        const name = row.querySelector('[data-field="name"]').value.trim();
-        const tithes = parseFloat(row.querySelector('[data-field="tithes"]').value) || 0;
-        const offering = parseFloat(row.querySelector('[data-field="offering"]').value) || 0;
-        const others = parseFloat(row.querySelector('[data-field="others"]').value) || 0;
-        const note = row.querySelector('[data-field="note"]').value.trim();
+    <script>
+        /*
+        Core JS logic:
+        - maintain incomeRows[] and expenseRows[]
+        - top two expense rows are auto (10% and 40%) and non-deletable
+        - compute totals live
+        - Save to server via AJAX (fetch)
+        */
 
-        if (name && (tithes > 0 || offering > 0 || others > 0)) {
-            const record = {
-                id: Date.now() + Math.random(),
-                name: name,
-                tithes: tithes,
-                offering: offering,
-                others: others,
-                note: note
-            };
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-            financeData[currentDate].income.push(record);
-            convertToIncomeDataRow(row, record);
-            addEmptyIncomeRow();
-            initializeExpenseTables(); // Recompute 10% and 40% expense rows
-            updateSummary();
-            updateArchiveList();
-        }
-    }
+        let incomeRows = []; // {name, tithes, offering, others, note}
+        let expenseRows = []; // manual entries (not including auto rows)
+        let autoExpenseRows = []; // will contain 2 auto rows: tithe-of-tithes and 40% of remaining
 
-    // Data storage for different dates
-    let financeData = {};
-    let currentDate = new Date().toISOString().split('T')[0];
+        const incomeTableBody = document.getElementById('incomeTableBody');
+        const expenseTableBody = document.getElementById('expenseTableBody');
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('selectedDate').value = currentDate;
-    updateDateDisplay();
-    
-    // Load existing data and initialize tables
-    loadRecordsForDate();
-    
-    // Load and update archive list from database
-    updateArchiveList();
-    });
+        const totalIncomeEl = document.getElementById('totalIncome');
+        const tithesAmountEl = document.getElementById('tithesAmount');
+        const offeringAmountEl = document.getElementById('offeringAmount');
+        const othersAmountEl = document.getElementById('othersAmount');
+        const totalExpensesEl = document.getElementById('totalExpenses');
+        const netBalanceEl = document.getElementById('netBalance');
+        const selectedDateInput = document.getElementById('selectedDate');
+        const dateDisplay = document.getElementById('dateDisplay');
+        const archiveListEl = document.getElementById('archiveList');
+        const saveBtn = document.getElementById('saveBtn');
 
-    function updateDateDisplay() {
-        const date = new Date(currentDate);
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('dateDisplay').textContent = date.toLocaleDateString('en-US', options);
-    }
-
-    function loadRecordsForDate() {
-        currentDate = document.getElementById('selectedDate').value;
-        updateDateDisplay();
-
-        if (!financeData[currentDate]) {
-            financeData[currentDate] = {
-                income: [],
-                expenses: []
-            };
-        }
-
-        // Load existing data from database for the selected date
-        loadExistingCashflowData();
-
-        initializeIncomeTables();
-        initializeExpenseTables();
-        updateSummary();
-    }
-
-    // Part for the detailed entry retrieval
-    function loadDetailedEntries(date) {
-        // Load income entries
-        fetch(`/cashflow/income-entries/${date}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.entries) {
-                    financeData[date].income = data.entries.map(entry => ({
-                        id: entry.id,
-                        name: entry.name,
-                        tithes: parseFloat(entry.tithes),
-                        offering: parseFloat(entry.offering),
-                        others: parseFloat(entry.others),
-                        note: entry.note || ''
-                    }));
-                    initializeIncomeTables();
-                    updateSummary();
-                }
-            })
-            .catch(error => console.log('Error loading income entries:', error));
-
-        // Load expense entries
-        fetch(`/cashflow/expense-entries/${date}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.entries) {
-                    // Filter out auto-generated entries and load only manual ones
-                    const manualEntries = data.entries.filter(entry => !entry.is_auto);
-                    financeData[date].expenses = manualEntries.map(entry => ({
-                        id: entry.id,
-                        name: entry.name,
-                        amount: parseFloat(entry.amount),
-                        auto: entry.is_auto
-                    }));
-                    initializeExpenseTables();
-                    updateSummary();
-                }
-            })
-            .catch(error => console.log('Error loading expense entries:', error));
-    }
-
-    // Income Table Initialization
-    function initializeIncomeTables() {
-        const tbody = document.getElementById('incomeTableBody');
-        tbody.innerHTML = '';
-
-        const incomeData = financeData[currentDate].income;
-        incomeData.forEach((record, index) => {
-            addIncomeRowToTable(record, index + 1);
+        document.addEventListener('DOMContentLoaded', () => {
+            // default: add one income row and one expense row
+            addIncomeRow();
+            addExpenseRow();
+            selectedDateInput.valueAsDate = new Date();
+            updateDateDisplay();
+            computeAll();
+            loadArchive();
         });
 
-        // Add 3 empty rows for new entries
-        for (let i = 0; i < 3; i++) {
-            addEmptyIncomeRow();
-        }
-    }
-
-    // Expense Table Initialization
-    function initializeExpenseTables() {
-        const tbody = document.getElementById('expenseTableBody');
-        tbody.innerHTML = '';
-
-        // Add auto-computed 10% and 40% rows
-        addComputedExpenseRows();
-
-        // Load existing manual expense data (exclude auto)
-        const expenseData = financeData[currentDate].expenses.filter(r => !r.auto);
-        expenseData.forEach((record, index) => {
-            addExpenseRowToTable(record, index + 3); // start after computed rows 1 and 2
-        });
-
-        // Add 2 empty rows for manual entries
-        for (let i = 0; i < 2; i++) {
-            addEmptyExpenseRow();
-        }
-    }
-
-    // Add 10% and 40% computed expense rows
-    function addComputedExpenseRows() {
-        const tbody = document.getElementById('expenseTableBody');
-        const dayData = financeData[currentDate];
-        if (!dayData) return;
-
-        let totalTithes = 0, totalOffering = 0;
-        dayData.income.forEach(record => {
-            totalTithes += record.tithes;
-            totalOffering += record.offering;
-        });
-
-        const incomeBase = totalTithes + totalOffering;
-        const tenPercent = +(incomeBase * 0.10).toFixed(2);
-        const afterTen = incomeBase - tenPercent;
-        const fortyPercent = +(afterTen * 0.40).toFixed(2);
-
-        // Create 10% row
-        const tenRow = document.createElement('tr');
-        tenRow.innerHTML = `
-            <td class="row-number">1</td>
-            <td><input type="text" class="table-input" value="10% (Tithes of Tithes)" readonly></td>
-            <td><input type="number" class="table-input" value="${tenPercent}" readonly></td>
-            <td></td>
-        `;
-        tbody.appendChild(tenRow);
-
-        // Create 40% row
-        const fortyRow = document.createElement('tr');
-        fortyRow.innerHTML = `
-            <td class="row-number">2</td>
-            <td><input type="text" class="table-input" value="40% (Love Gift)" readonly></td>
-            <td><input type="number" class="table-input" value="${fortyPercent}" readonly></td>
-            <td></td>
-        `;
-        tbody.appendChild(fortyRow);
-
-        // Update expenses data: remove old auto10 and auto40, add new ones
-        financeData[currentDate].expenses = [
-            { id: 'auto10', name: '10% (Tithes of Tithes)', amount: tenPercent, auto: true },
-            { id: 'auto40', name: '40% (Love Gift)', amount: fortyPercent, auto: true },
-            ...financeData[currentDate].expenses.filter(r => !r.auto)
-        ];
-    }
-
-    // Add income row to table
-    function addIncomeRowToTable(record, rowNum) {
-        const tbody = document.getElementById('incomeTableBody');
-        const row = document.createElement('tr');
-        row.dataset.recordId = record.id;
-
-        row.innerHTML = `
-            <td class="row-number">${rowNum}</td>
-            <td><input type="text" class="table-input" value="${record.name}" data-field="name" onchange="updateIncomeRecord(this)"></td>
-            <td><input type="number" class="table-input" value="${record.tithes}" data-field="tithes" step="0.01" min="0" onchange="updateIncomeRecord(this)"></td>
-            <td><input type="number" class="table-input" value="${record.offering}" data-field="offering" step="0.01" min="0" onchange="updateIncomeRecord(this)"></td>
-            <td><input type="number" class="table-input" value="${record.others}" data-field="others" step="0.01" min="0" onchange="updateIncomeRecord(this)"></td>
-            <td><input type="text" class="table-input" value="${record.note || ''}" data-field="note" placeholder="Purpose of Others" onchange="updateIncomeRecord(this)"></td>
-            <td style="text-align: center;">
-                <button class="delete-btn" onclick="deleteIncomeRecord('${record.id}')" title="Delete record">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
-
-        tbody.appendChild(row);
-    }
-
-    // Add expense row to table
-    function addExpenseRowToTable(record, rowNum) {
-        const tbody = document.getElementById('expenseTableBody');
-        const row = document.createElement('tr');
-        row.dataset.recordId = record.id;
-
-        row.innerHTML = `
-            <td class="row-number">${rowNum}</td>
-            <td><input type="text" class="table-input" value="${record.name}" data-field="name" onchange="updateExpenseRecord(this)"></td>
-            <td><input type="number" class="table-input" value="${record.amount}" data-field="amount" step="0.01" min="0" onchange="updateExpenseRecord(this)"></td>
-            <td style="text-align: center;">
-                <button class="delete-btn" onclick="deleteExpenseRecord('${record.id}')" title="Delete record">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
-
-        tbody.appendChild(row);
-    }
-
-    // Add empty income row for new entry
-    function addEmptyIncomeRow() {
-        const tbody = document.getElementById('incomeTableBody');
-        const row = document.createElement('tr');
-        row.classList.add('new-row');
-
-        row.innerHTML = `
-            <td class="row-number">${tbody.children.length + 1}</td>
-            <td><input type="text" class="table-input" data-field="name" placeholder="Enter name" onchange="createNewIncomeRecord(this)"></td>
-            <td><input type="number" class="table-input" data-field="tithes" step="0.01" min="0" placeholder="0.00" onchange="createNewIncomeRecord(this)"></td>
-            <td><input type="number" class="table-input" data-field="offering" step="0.01" min="0" placeholder="0.00" onchange="createNewIncomeRecord(this)"></td>
-            <td><input type="number" class="table-input" data-field="others" step="0.01" min="0" placeholder="0.00" onchange="createNewIncomeRecord(this)"></td>
-            <td><input type="text" class="table-input" data-field="note" placeholder="Purpose of Others" onchange="createNewIncomeRecord(this)"></td>
-            <td></td>
-        `;
-        tbody.appendChild(row);
-    }
-
-    // Add empty expense row for new entry
-    function addEmptyExpenseRow() {
-        const tbody = document.getElementById('expenseTableBody');
-        const row = document.createElement('tr');
-        row.classList.add('new-row');
-
-        row.innerHTML = `
-            <td class="row-number">${tbody.children.length + 1}</td>
-            <td><input type="text" class="table-input" data-field="name" placeholder="Enter expense name" onchange="createNewExpenseRecord(this)"></td>
-            <td><input type="number" class="table-input" data-field="amount" step="0.01" min="0" placeholder="0.00" onchange="createNewExpenseRecord(this)"></td>
-            <td></td>
-        `;
-        tbody.appendChild(row);
-    }
-
-    // Create new income record from empty row inputs
-    function createNewIncomeRecord(element) {
-        const row = element.closest('tr');
-        const name = row.querySelector('[data-field="name"]').value.trim();
-        const tithes = parseFloat(row.querySelector('[data-field="tithes"]').value) || 0;
-        const offering = parseFloat(row.querySelector('[data-field="offering"]').value) || 0;
-        const others = parseFloat(row.querySelector('[data-field="others"]').value) || 0;
-        const note = row.querySelector('[data-field="note"]').value.trim();
-
-        if (name && (tithes > 0 || offering > 0 || others > 0)) {
-            const record = {
-                id: Date.now() + Math.random(),
-                name: name,
-                tithes: tithes,
-                offering: offering,
-                others: others,
-                note: note
-            };
-
-            financeData[currentDate].income.push(record);
-            convertToIncomeDataRow(row, record);
-            addEmptyIncomeRow();
-            initializeExpenseTables(); // Recompute 10% and 40% expense rows
-            updateSummary();
-            updateArchiveList();
-        }
-    }
-
-    // Create new expense record from empty row inputs
-    function createNewExpenseRecord(element) {
-        const row = element.closest('tr');
-        const name = row.querySelector('[data-field="name"]').value.trim();
-        const amount = parseFloat(row.querySelector('[data-field="amount"]').value) || 0;
-
-        if (name && amount > 0) {
-            const record = {
-                id: Date.now() + Math.random(),
-                name: name,
-                amount: amount
-            };
-
-            financeData[currentDate].expenses.push(record);
-            convertToExpenseDataRow(row, record);
-            addEmptyExpenseRow();
-            updateSummary();
-            updateArchiveList();
-        }
-    }
-
-    // Convert empty income row to data row
-    function convertToIncomeDataRow(row, record) {
-        row.classList.remove('new-row');
-        row.dataset.recordId = record.id;
-
-        const actionCell = row.children[6];
-        actionCell.innerHTML = `
-            <button class="delete-btn" onclick="deleteIncomeRecord('${record.id}')" title="Delete record">
-                <i class="fas fa-trash"></i>
-            </button>
-        `;
-        actionCell.style.textAlign = 'center';
-
-        row.querySelectorAll('.table-input').forEach(input => {
-            input.onchange = function() { updateIncomeRecord(this); };
-        });
-    }
-
-    // Convert empty expense row to data row
-    function convertToExpenseDataRow(row, record) {
-        row.classList.remove('new-row');
-        row.dataset.recordId = record.id;
-
-        const actionCell = row.children[3];
-        actionCell.innerHTML = `
-            <button class="delete-btn" onclick="deleteExpenseRecord('${record.id}')" title="Delete record">
-                <i class="fas fa-trash"></i>
-            </button>
-        `;
-        actionCell.style.textAlign = 'center';
-
-        row.querySelectorAll('.table-input').forEach(input => {
-            input.onchange = function() { updateExpenseRecord(this); };
-        });
-    }
-
-    // Update income record on input change
-    function updateIncomeRecord(element) {
-        const row = element.closest('tr');
-        const recordId = row.dataset.recordId;
-        if (!recordId) return;
-
-        const record = financeData[currentDate].income.find(r => r.id == recordId);
-        if (!record) return;
-
-        const field = element.dataset.field;
-        let value = element.value;
-
-        if (field === 'tithes' || field === 'offering' || field === 'others') {
-            value = parseFloat(value) || 0;
-        } else if (field === 'note') {
-            record[field] = value.trim();
-            updateSummary();
-            return;
+        function updateDateDisplay() {
+            const d = new Date(selectedDateInput.value);
+            dateDisplay.textContent = d.toLocaleDateString();
         }
 
-        record[field] = value;
-        initializeExpenseTables(); // Recompute 10% and 40% expense rows on income change
-        updateSummary();
-    }
-
-    // Update expense record on input change
-    function updateExpenseRecord(element) {
-        const row = element.closest('tr');
-        const recordId = row.dataset.recordId;
-        if (!recordId) return;
-
-        if (recordId === 'auto10' || recordId === 'auto40') {
-            alert("This record is auto-generated and cannot be edited.");
-            initializeExpenseTables();
-            return;
+        // INCOME FUNCTIONS
+        function addIncomeRow(data = null) {
+            const row = data ?? { name: '', tithes: 0, offering: 0, others: 0, note: '' };
+            incomeRows.push(row);
+            renderIncomeTable();
         }
 
-        const record = financeData[currentDate].expenses.find(r => r.id == recordId);
-        if (!record) return;
-
-        const field = element.dataset.field;
-        let value = element.value;
-
-        if (field === 'amount') {
-            value = parseFloat(value) || 0;
+        function deleteIncomeRow(index) {
+            incomeRows.splice(index, 1);
+            renderIncomeTable();
+            computeAll();
         }
 
-        record[field] = value;
-        updateSummary();
-    }
-
-    // Delete income record
-    function deleteIncomeRecord(recordId) {
-        if (confirm('Are you sure you want to delete this income record?')) {
-            financeData[currentDate].income = financeData[currentDate].income.filter(record => record.id != recordId);
-            initializeIncomeTables();
-            initializeExpenseTables(); // Recompute 10% and 40% expense rows
-            updateSummary();
-            updateArchiveList();
-        }
-    }
-
-    // Delete expense record
-    function deleteExpenseRecord(recordId) {
-        if (recordId === 'auto10' || recordId === 'auto40') {
-            alert("This record is auto-generated and cannot be deleted.");
-            return;
+        function clearIncomeData() {
+            incomeRows = [];
+            addIncomeRow();
+            computeAll();
         }
 
-        if (confirm('Are you sure you want to delete this expense record?')) {
-            financeData[currentDate].expenses = financeData[currentDate].expenses.filter(record => record.id != recordId);
-            initializeExpenseTables();
-            updateSummary();
-            updateArchiveList();
-        }
-    }
-
-    // Update summary section
-    function updateSummary() {
-        const dayData = financeData[currentDate];
-        if (!dayData) return;
-
-        let totalTithes = 0, totalOffering = 0, totalOthers = 0;
-
-        // Sum income parts
-        dayData.income.forEach(record => {
-            totalTithes += record.tithes;
-            totalOffering += record.offering;
-            totalOthers += record.others;
-        });
-
-        // Total income = tithes + offering only (exclude others)
-        const incomeBase = totalTithes + totalOffering;
-
-        // 10% fixed expense (auto)
-        const tenPercent = +(incomeBase * 0.10).toFixed(2);
-        // 40% fixed expense (auto) from remaining after 10%
-        const afterTen = incomeBase - tenPercent;
-        const fortyPercent = +(afterTen * 0.40).toFixed(2);
-
-        // Sum user-defined expenses (exclude auto)
-        let userExpenses = 0;
-        dayData.expenses.forEach(r => {
-            if (!r.auto) userExpenses += r.amount;
-        });
-
-        // Total expenses = 10% + 40% fixed + user expenses
-        const totalExpenses = tenPercent + fortyPercent + userExpenses;
-
-        // Net balance = incomeBase - totalExpenses
-        const netBalance = incomeBase - totalExpenses;
-
-        // Update DOM
-        document.getElementById("tithesAmount").textContent = `₱${totalTithes.toFixed(2)}`;
-        document.getElementById("offeringAmount").textContent = `₱${totalOffering.toFixed(2)}`;
-        document.getElementById("othersAmount").textContent = `₱${totalOthers.toFixed(2)}`;
-        document.getElementById("totalIncome").textContent = `₱${incomeBase.toFixed(2)}`;
-        document.getElementById("totalExpenses").textContent = `₱${totalExpenses.toFixed(2)}`;
-        document.getElementById("netBalance").textContent = `₱${netBalance.toFixed(2)}`;
-    }
-
-    // Archive List rendering
-    function updateArchiveList() {
-        const archiveList = document.getElementById("archiveList");
-        if (!archiveList) return;
-
-        // Clear existing list
-        archiveList.innerHTML = "";
-
-        // Load saved records from database
-        fetch('/cashflow/previous-records')
-            .then(response => response.json())
-            .then(data => {
-                const allDates = new Set();
-
-                // Add database records
-                if (data.success && data.records) {
-                    data.records.forEach(record => {
-                        allDates.add(record.record_date);
-                    });
-                }
-
-                // Add current session data
-                Object.keys(financeData).forEach(date => {
-                    allDates.add(date);
-                });
-
-                // Sort all unique dates descending
-                const sortedDates = Array.from(allDates).sort().reverse();
-
-                sortedDates.forEach(date => {
-                    const div = document.createElement("div");
-                    div.classList.add("archive-item");
-
-                    // Check if date exists in DB records
-                    const dbRecord = data.records?.find(r => r.record_date === date);
-                    const statusIcon = dbRecord
-                        ? '<i class="fas fa-check-circle text-green-500"></i>'
-                        : '<i class="fas fa-edit text-yellow-500"></i>';
-
-                    div.innerHTML = `
-                        <a href="#" onclick="selectDateFromArchive('${date}')">
-                            <i class="fas fa-calendar-alt"></i> ${date} ${statusIcon}
-                        </a>
-                    `;
-                    archiveList.appendChild(div);
-                });
-            })
-            .catch(error => {
-                console.error('Error loading previous records:', error);
-
-                // Fallback to session data only
-                const dates = Object.keys(financeData).sort().reverse();
-                dates.forEach(date => {
-                    const div = document.createElement("div");
-                    div.classList.add("archive-item");
-                    div.innerHTML = `
-                        <a href="#" onclick="selectDateFromArchive('${date}')">
-                            <i class="fas fa-calendar-alt"></i> ${date}
-                        </a>
-                    `;
-                    archiveList.appendChild(div);
-                });
+        function exportIncomeData() {
+            // quick CSV export
+            let csv = 'Name,Tithes,Offering,Others,Note\n';
+            incomeRows.forEach(r => {
+                csv += `"${r.name}",${r.tithes},${r.offering},${r.others},"${(r.note||'').replace(/"/g,'""')}"\n`;
             });
-    }
-
-    function selectDateFromArchive(date) {
-        currentDate = date;
-        document.getElementById('selectedDate').value = date;
-
-        // Initialize empty data structure if it doesn't exist
-        if (!financeData[currentDate]) {
-            financeData[currentDate] = {
-                income: [],
-                expenses: []
-            };
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'income_export.csv';
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
-        // Load the data for the selected date
-        loadRecordsForDate();
-    }
-
-    // Add Row Buttons
-    function addIncomeRow() {
-        addEmptyIncomeRow();
-    }
-
-    function addExpenseRow() {
-        addEmptyExpenseRow();
-    }
-
-    // Clear Buttons
-    function clearIncomeData() {
-        if (confirm("Clear all income records for this date?")) {
-            financeData[currentDate].income = [];
-            initializeIncomeTables();
-            initializeExpenseTables(); // Recompute 10% and 40% expense rows
-            updateSummary();
-            updateArchiveList();
-        }
-    }
-
-    function clearExpenseData() {
-        if (confirm("Clear all expense records for this date?")) {
-            // Remove all manual expenses, keep auto10 and auto40
-            financeData[currentDate].expenses = financeData[currentDate].expenses.filter(r => r.auto);
-            initializeExpenseTables();
-            updateSummary();
-            updateArchiveList();
-        }
-    }
-
-    // Export Buttons
-    function exportIncomeData() {
-        const records = financeData[currentDate]?.income || [];
-        if (records.length === 0) return alert("No income data to export.");
-
-        let csv = "Name,Tithes,Offering,Others,Note\n";
-        records.forEach(r => {
-            csv += `${r.name},${r.tithes},${r.offering},${r.others},"${r.note || ''}"\n`;
-        });
-
-        downloadCSV(csv, `income_${currentDate}.csv`);
-    }
-
-    function exportExpenseData() {
-        const records = financeData[currentDate]?.expenses || [];
-        if (records.length === 0) return alert("No expense data to export.");
-
-        let csv = "Name,Amount\n";
-        records.forEach(r => {
-            csv += `${r.name},${r.amount}\n`;
-        });
-
-        downloadCSV(csv, `expenses_${currentDate}.csv`);
-    }
-
-    function downloadCSV(csv, filename) {
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);r
-        link.click();
-        URL.revokeObjectURL(url);
-    }
-
-    // Optional Report Generator
-    function generateReport() {
-        // Redirect to reports page
-        window.location.href = '/treasurer/reports';
-    }
-
-    function loadExistingCashflowData() {
-        fetch(`/cashflow/data/${currentDate}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.data) {
-                    const cashflowData = data.data;
-
-                    // Load detailed entries if available
-                    loadDetailedEntries(currentDate);
-
-                    console.log('Existing cashflow data loaded:', cashflowData);
-                    // You can optionally show this data or use it for reference
-                } else {
-                    console.log('No existing cashflow data for this date');
-                }
-            })
-            .catch(error => {
-                console.log('Error loading cashflow data:', error);
+        function renderIncomeTable() {
+            incomeTableBody.innerHTML = '';
+            incomeRows.forEach((r, i) => {
+                const tr = document.createElement('tr');
+                tr.className = (i % 2 === 0) ? 'new-row' : '';
+                tr.innerHTML = `
+                    <td class="row-number">${i+1}</td>
+                    <td><input type="text" class="table-input" value="${escapeHtml(r.name)}" oninput="onIncomeChange(${i}, 'name', this.value)" /></td>
+                    <td><input type="number" min="0" step="0.01" class="table-input" value="${Number(r.tithes).toFixed(2)}" oninput="onIncomeChange(${i}, 'tithes', this.value)" /></td>
+                    <td><input type="number" min="0" step="0.01" class="table-input" value="${Number(r.offering).toFixed(2)}" oninput="onIncomeChange(${i}, 'offering', this.value)" /></td>
+                    <td><input type="number" min="0" step="0.01" class="table-input" value="${Number(r.others).toFixed(2)}" oninput="onIncomeChange(${i}, 'others', this.value)" /></td>
+                    <td><input type="text" class="table-input" value="${escapeHtml(r.note||'')}" oninput="onIncomeChange(${i}, 'note', this.value)" /></td>
+                    <td><button class="delete-btn" onclick="deleteIncomeRow(${i})"><i class="fas fa-trash"></i></button></td>
+                `;
+                incomeTableBody.appendChild(tr);
             });
-    }
-
-    // Save all records to database (dummy implementation)
-    function saveAllRecordsToDatabase() {
-        const dayData = financeData[currentDate];
-        if (!dayData) {
-            alert('No data to save for this date.');
-            return;
         }
 
-        // Calculate income totals
-        let totalTithes = 0, totalOffering = 0, totalOthers = 0;
-        dayData.income.forEach(record => {
-            totalTithes += record.tithes;
-            totalOffering += record.offering;
-            totalOthers += record.others;
-        });
-
-        const totalIncome = totalTithes + totalOffering; // Exclude others from income total
-
-        // Calculate total expenses
-        let totalExpenses = 0;
-        dayData.expenses.forEach(record => {
-            totalExpenses += record.amount;
-        });
-
-        const balance = totalIncome - totalExpenses;
-
-        // Prepare data for saving
-        const cashflowData = {
-            record_date: currentDate,
-            total_income: totalIncome,
-            tithes: totalTithes,
-            offering: totalOffering,
-            others: totalOthers,
-            total_expenses: totalExpenses,
-            balance: balance
-        };
-
-        // Get CSRF token
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-
-        // Button loading state
-        const saveButton = document.querySelector('button[onclick="saveAllRecordsToDatabase()"]');
-        const originalText = saveButton.innerHTML;
-        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-        saveButton.disabled = true;
-
-        // Send main cashflow data
-        fetch('/cashflow/save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify(cashflowData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Save detailed income/expense records
-                saveDetailedEntries(currentDate, csrfToken);
-
-                // Update archive list UI
-                updateArchiveList();
-
-                alert('Cashflow record and all entries saved successfully!');
-                console.log('Saved data:', data.data);
+        // when income input changes
+        function onIncomeChange(index, key, value) {
+            if (!incomeRows[index]) return;
+            if (['tithes','offering','others'].includes(key)) {
+                incomeRows[index][key] = parseFloat(value || 0);
             } else {
-                alert('Error saving record: ' + data.message);
+                incomeRows[index][key] = value;
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error saving record. Please try again.');
-        })
-        .finally(() => {
-            // Restore button state
-            saveButton.innerHTML = originalText;
-            saveButton.disabled = false;
-        });
-    }
+            computeAll();
+        }
 
-// Save detailed income and expense entries
-function saveDetailedEntries(date, csrfToken) {
-    const dayData = financeData[date];
-    
-    // Prepare income entries data
-    const incomeEntries = dayData.income.map(record => ({
-        record_date: date,
-        name: record.name,
-        tithes: record.tithes,
-        offering: record.offering,
-        others: record.others,
-        note: record.note || ''
-    }));
+        // EXPENSE FUNCTIONS
+        function addExpenseRow(data = null) {
+            const row = data ?? { expense_name: '', amount: 0, note: '', is_auto: false };
+            expenseRows.push(row);
+            renderExpenseTable();
+        }
 
-    // Prepare expense entries data (exclude auto-generated ones)
-    const expenseEntries = dayData.expenses
-        .filter(record => !record.auto)
-        .map(record => ({
-            expense_name: record.name,
-            amount: record.amount,
-        }));
+        function deleteExpenseRow(index) {
+            expenseRows.splice(index, 1);
+            renderExpenseTable();
+            computeAll();
+        }
 
-    // ✅ Save income entries
-    if (incomeEntries.length > 0) {
-        fetch('/cashflow/save-income-entries', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify({ entries: incomeEntries })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Income entries saved successfully');
-            }
-        })
-        .catch(error => console.error('Error saving income entries:', error));
-    }
+        function clearExpenseData() {
+            expenseRows = [];
+            addExpenseRow();
+            computeAll();
+        }
 
-    // ✅ Save expense entries to expense table
-    if (expenseEntries.length > 0) {
-        fetch('/expense/save-entries', {   // 👉 hiwalay na endpoint para sa expenses table
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify({ entries: expenseEntries })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Expense entries saved successfully to expenses table');
-            }
-        })
-        .catch(error => console.error('Error saving expense entries:', error));
-    }
-}
+        function exportExpenseData() {
+            let csv = 'Expense Name,Amount,Note\n';
+            // include auto rows first
+            autoExpenseRows.forEach(r => {
+                csv += `"${r.expense_name}",${r.amount},"${(r.note||'').replace(/"/g,'""')}"\n`;
+            });
+            expenseRows.forEach(r => {
+                csv += `"${r.expense_name}",${r.amount},"${(r.note||'').replace(/"/g,'""')}"\n`;
+            });
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'expense_export.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
 
-    // Delete record from database and archive
-    function deleteRecordFromArchive(date) {
-        if (confirm(`Are you sure you want to delete all records for ${date}? This action cannot be undone.`)) {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-            
-            fetch(`/cashflow/delete/${date}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Remove from current session data
-                    delete financeData[date];
-                    
-                    // Update archive list
-                    updateArchiveList();
-                    
-                    // If deleted date was current date, reset to today
-                    if (currentDate === date) {
-                        currentDate = new Date().toISOString().split('T')[0];
-                        document.getElementById('selectedDate').value = currentDate;
-                        loadRecordsForDate();
-                    }
-                    
-                    alert('Record deleted successfully!');
-                } else {
-                    alert('Error deleting record: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error deleting record. Please try again.');
+        function renderExpenseTable() {
+            expenseTableBody.innerHTML = '';
+            // render auto rows at top (non-deletable)
+            autoExpenseRows.forEach((r, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="row-number">${i+1}</td>
+                    <td><input type="text" class="table-input" value="${escapeHtml(r.expense_name)}" readonly /></td>
+                    <td><input type="number" class="table-input" value="${Number(r.amount).toFixed(2)}" readonly /></td>
+                    <td></td>
+                `;
+                expenseTableBody.appendChild(tr);
+            }); 
+
+            // normal expense rows
+            expenseRows.forEach((r, i) => {
+                const idx = autoExpenseRows.length + i + 1;
+                const tr = document.createElement('tr');
+                tr.className = (i % 2 === 0) ? 'new-row' : '';
+                tr.innerHTML = `
+                    <td class="row-number">${idx}</td>
+                    <td><input type="text" class="table-input" value="${escapeHtml(r.expense_name)}" oninput="onExpenseChange(${i}, 'expense_name', this.value)" /></td>
+                    <td><input type="number" min="0" step="0.01" class="table-input" value="${Number(r.amount).toFixed(2)}" oninput="onExpenseChange(${i}, 'amount', this.value)" /></td>
+                    <td><button class="delete-btn" onclick="deleteExpenseRow(${i})"><i class="fas fa-trash"></i></button></td>
+                `;
+                expenseTableBody.appendChild(tr);
             });
         }
-    }
-</script>
-</body>
-</html>
+
+        // expense input change
+        function onExpenseChange(index, key, value) {
+            if (!expenseRows[index]) return;
+            if (key === 'amount') expenseRows[index].amount = parseFloat(value || 0);
+            else expenseRows[index][key] = value;
+            computeAll();
+        }
+
+        // COMPUTE FUNCTIONS
+        function computeAutoExpenses(tithesTotal, offeringTotal) {
+            const total = (Number(tithesTotal) || 0) + (Number(offeringTotal) || 0);
+
+            const tenPercent = round2(total * 0.10); // tithe of tithes
+            const remainingAfterTen = round2(total - tenPercent);
+            const fortyPercent = round2(remainingAfterTen * 0.40);
+
+            autoExpenseRows = [
+                { expense_name: 'Tithe of Tithes (10%)', amount: tenPercent, is_auto: true, note: 'Auto-generated' },
+                { expense_name: 'Ministry Fund (40% of remaining)', amount: fortyPercent, is_auto: true, note: 'Auto-generated' }
+            ];
+        }
+
+        function computeAll() {
+            // totals from incomeRows
+            let totalTithes = 0, totalOffering = 0, totalOthers = 0;
+            incomeRows.forEach(r => {
+                totalTithes += Number(r.tithes || 0);
+                totalOffering += Number(r.offering || 0);
+                totalOthers += Number(r.others || 0);
+            });
+
+            const totalIncome = round2(totalTithes + totalOffering);
+
+            // compute autos
+            computeAutoExpenses(totalTithes, totalOffering);
+
+            // total expenses = sum(auto + manual expenseRows)
+            let manualExpenses = 0;
+            expenseRows.forEach(r => manualExpenses += Number(r.amount || 0));
+            let autoExpenseTotal = autoExpenseRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+            const totalExpenses = round2(manualExpenses + autoExpenseTotal);
+
+            const netBalance = round2(totalIncome - totalExpenses);
+
+            // render to DOM
+            totalIncomeEl.textContent = formatCurrency(totalIncome);
+            tithesAmountEl.textContent = formatCurrency(totalTithes);
+            offeringAmountEl.textContent = formatCurrency(totalOffering);
+            othersAmountEl.textContent = formatCurrency(totalOthers);
+            totalExpensesEl.textContent = formatCurrency(totalExpenses);
+            netBalanceEl.textContent = formatCurrency(netBalance);
+
+            renderExpenseTable();
+        }
+
+        function round2(n) {
+            return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+        }
+
+        function formatCurrency(n) {
+            return '₱' + Number(n || 0).toFixed(2);
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+        }
+
+        // SAVE ALL RECORDS
+        saveBtn.addEventListener('click', saveAllRecordsToDatabase);
+
+        async function saveAllRecordsToDatabase() {
+            // build payload
+            const recordDate = selectedDateInput.value;
+            if (!recordDate) {
+                alert('Please choose a date first.');
+                return;
+            }
+
+            // totals (recompute to be safe)
+            let totalTithes = 0, totalOffering = 0, totalOthers = 0;
+            incomeRows.forEach(r => {
+                totalTithes += Number(r.tithes || 0);
+                totalOffering += Number(r.offering || 0);
+                totalOthers += Number(r.others || 0);
+            });
+            const totalIncome = round2(totalTithes + totalOffering);
+
+            computeAutoExpenses(totalTithes, totalOffering);
+            let autoExpenseTotal = autoExpenseRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+            let manualExpenseTotal = expenseRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+            const totalExpenses = round2(autoExpenseTotal + manualExpenseTotal);
+            const netBalance = round2(totalIncome - totalExpenses);
+
+            // prepare expense_entries array (auto rows first)
+            const expense_entries = [];
+            autoExpenseRows.forEach(r => expense_entries.push({
+                expense_name: r.expense_name,
+                amount: Number(r.amount),
+                is_auto: true,
+                note: r.note || null
+            }));
+            expenseRows.forEach(r => expense_entries.push({
+                expense_name: r.expense_name || 'Unnamed expense',
+                amount: Number(r.amount || 0),
+                is_auto: false,
+                note: r.note || null
+            }));
+
+            const payload = {
+                record_date: recordDate,
+                total_income: totalIncome,
+                total_tithes: round2(totalTithes),
+                total_offering: round2(totalOffering),
+                total_others: round2(totalOthers),
+                total_expenses: totalExpenses,
+                net_balance: netBalance,
+                income_records: incomeRows,
+                expense_entries: expense_entries
+            };
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch('{{ route("treasurer.cshflw.save") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert('Saved successfully!');
+                    loadArchive();
+                } else {
+                    console.error(data);
+                    alert('Error saving: ' + (data.message || JSON.stringify(data.errors || data)));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network/server error. Check console.');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Save All Records';
+            }
+        }
+
+        // LOAD existing records for the chosen date
+        async function loadRecordsForDate() {
+            const d = selectedDateInput.value;
+            updateDateDisplay();
+            if (!d) return;
+
+            try {
+                const res = await fetch('{{ route("treasurer.cshflw.load") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ date: d })
+                });
+                const json = await res.json();
+                if (json.found) {
+                    // populate UI with saved data
+                    incomeRows = json.cashflow.income_records || [];
+                    // expense rows: separate auto from manual; auto rows will come with is_auto true
+                    const expenses = json.expenses || [];
+                    autoExpenseRows = expenses.filter(e => e.is_auto).map(e => ({
+                        expense_name: e.expense_name, amount: Number(e.amount), is_auto: true, note: e.note
+                    }));
+                    expenseRows = expenses.filter(e => !e.is_auto).map(e => ({
+                        expense_name: e.expense_name, amount: Number(e.amount), note: e.note, is_auto: false
+                    }));
+
+                    renderIncomeTable();
+                    renderExpenseTable();
+                    computeAll();
+                    alert('Loaded saved record for ' + new Date(d).toLocaleDateString());
+                } else {
+                    // no saved record for this date
+                    incomeRows = [];
+                    expenseRows = [];
+                    addIncomeRow();
+                    addExpenseRow();
+                    computeAll();
+                    alert('No saved record for this date. You can enter new data and save.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error loading data. See console.');
+            }
+        }
+
+        // ARCHIVE
+        async function loadArchive() {
+            try {
+                const res = await fetch('{{ route("treasurer.cshflw.archive") }}', {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                const json = await res.json();
+                archiveListEl.innerHTML = '';
+                (json.list || []).forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'archive-item';
+                    div.innerHTML = `
+                        <div>
+                        <div class="archive-date">${new Date(item.record_date).toLocaleDateString()}</div>
+                        </div>
+                        <div class="archive-amount">₱${Number(item.net_balance).toFixed(2)}</div>
+                    `;
+                    div.addEventListener('click', () => {
+                        selectedDateInput.value = item.record_date;
+                        loadRecordsForDate();
+                    });
+                    archiveListEl.appendChild(div);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function generateReport() {
+            // simple report: just open printable window
+            let html = '<h1>Cashflow Report - ' + new Date(selectedDateInput.value).toLocaleDateString() + '</h1>';
+            html += `<p>Total Income: ${totalIncomeEl.textContent}</p>`;
+            html += `<p>Total Expenses: ${totalExpensesEl.textContent}</p>`;
+            html += `<p>Net Balance: ${netBalanceEl.textContent}</p>`;
+            const win = window.open('', '_blank');
+            win.document.write(html);
+            win.print();
+        }
+    </script>
+    </body>
+    </html>

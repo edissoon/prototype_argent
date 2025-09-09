@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Donation;
+use App\Models\Project;
 use Illuminate\Http\Request;
 
 class DonationController extends Controller
@@ -19,17 +20,27 @@ class DonationController extends Controller
             'reference' => 'required|string',
             'purpose' => 'required|string',
             'notes' => 'nullable|string',
+            'project_id' => 'nullable|exists:church_projects,id', // Add project_id validation
         ]);
 
-        Donation::create($validated);
+        // Create the donation
+        $donation = Donation::create($validated);
+
+        // ✅ Fix: Update project raised amount if donation is for a specific project
+        if ($validated['purpose'] === 'church_project' && $request->project_id) {
+            $project = Project::find($request->project_id);
+            if ($project) {
+                $project->raised_amount += $validated['amount'];
+                $project->save();
+            }
+        }
         
         return redirect()->back()->with('success', 'Donation submitted successfully!');
-
     }
     
     public function index()
     {
-        $donations = Donation::with('member')->orderBy('created_at', 'desc')->get();
+        $donations = Donation::with('member', 'project')->orderBy('created_at', 'desc')->get();
         return view('treasurer.donate', compact('donations'));
     }
 }

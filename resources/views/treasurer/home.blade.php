@@ -479,7 +479,7 @@
                 <li class="nav-item"><a href="{{ route('treasurer.home') }}" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
                 <li class="nav-item"><a href="{{ route('treasurer.cshflw') }}" class="nav-link"><i class="fas fa-coins"></i> Cash Flow Management</a></li>
                 <li class="nav-item"><a href="{{ route('treasurer.reports') }}" class="nav-link"><i class="fas fa-chart-bar"></i> Financial Reports</a></li>
-                <li class="nav-item"><a href="{{ route('treasurer.project') }}" class="nav-link"><i class="fas fa-hammer"></i> Church Projects</a></li>
+                <li class="nav-item"><a href="{{ route('treasurer.projects') }}" class="nav-link"><i class="fas fa-hammer"></i> Church Projects</a></li>
                 <li class="nav-item"><a href="{{ route('treasurer.savings') }}" class="nav-link"><i class="fas fa-piggy-bank"></i> Church Savings</a></li>
                 <li class="nav-item"><a href="{{ route('treasurer.pledges') }}" class="nav-link"><i class="fas fa-handshake"></i> Pledges</a></li>
                 <li class="nav-item"><a href="{{ route('treasurer.audit') }}" class="nav-link"><i class="fas fa-clipboard-list"></i> Audit Trail</a></li>
@@ -552,22 +552,22 @@
 
             <!-- Quick Actions -->
             <div class="quick-actions">
-                <div class="action-card" onclick="window.location.href='{{ route('treasurer.cshflw') }}'">
+                <div class="action-card" onclick="window.location.href='{{ route('treasurer.cshflw') }}';">
                     <i class="fas fa-plus-circle"></i>
                     <h4>New Cash Flow Record</h4>
                     <p>Record income and expenses</p>
                 </div>
-                <div class="action-card" onclick="window.location.href='{{ route('treasurer.reports') }}'">
+                <div class="action-card" onclick="window.location.href='{{ route('treasurer.reports') }}';">
                     <i class="fas fa-file-alt"></i>
                     <h4>Generate Report</h4>
                     <p>Create financial summary</p>
                 </div>
-                <div class="action-card" onclick="window.location.href='{{ route('treasurer.project') }}'">
+                <div class="action-card" onclick="window.location.href='{{ route('treasurer.projects') }}';">
                     <i class="fas fa-plus-circle"></i>
                     <h4>Add New Project</h4>
                     <p>Create new project</p>
                 </div>
-                <div class="action-card" onclick="window.location.href='{{ route('treasurer.pledges') }}'">
+                <div class="action-card" onclick="window.location.href='{{ route('treasurer.pledges') }}';">
                     <i class="fas fa-calendar-plus"></i>
                     <h4>New Pledge</h4>
                     <p>Record pledge commitment</p>

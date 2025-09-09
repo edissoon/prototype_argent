@@ -495,7 +495,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ route('treasurer.project') }}" class="nav-link" data-section="projects">
+                    <a href="{{ route('treasurer.projects') }}" class="nav-link" data-section="projects">
                         <i class="fas fa-hammer"></i>
                         Church Projects
                     </a>

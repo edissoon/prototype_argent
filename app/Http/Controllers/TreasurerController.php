@@ -26,7 +26,7 @@ class TreasurerController extends Controller
 
     public function project()
     {
-        return view('treasurer.project');
+        return view('treasurer.projects');
     }
 
     public function savings()

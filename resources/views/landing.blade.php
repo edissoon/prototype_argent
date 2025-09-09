@@ -407,55 +407,180 @@
             font-size: 1.1rem;
         }
 
-        /* Current Project Part */
+        /* Add these styles to your existing <style> tag */
         .projects-section {
-            background: linear-gradient(135deg, var(--pale-green) 0%, var(--info-bg) 100%);
-            padding: 60px 20px;
-            text-align: center;
+            background: var(--surface);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
 
-        .projects-section .section-title {
-            font-size: 2.5rem;
-            color: var(--primary); /* deep blue text */
-            margin-bottom: 40px;
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            text-align: center;
         }
 
         .projects-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 30px;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .project-card {
-            background-color: #ffffff;
-            border-radius: 15px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
-            padding: 25px;
-            text-align: left;
+            background: var(--background);
+            padding: 1.5rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
-            border-left: 6px solid var(--mint); /* Accent for visual cue */
         }
 
         .project-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+            transform: translateY(-5px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
         }
 
-        .project-card h3 {
-            font-size: 1.4rem;
-            color: var(--accent); /* Soft turquoise title */
-            margin-bottom: 10px;
+        .project-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 1rem;
         }
 
-        .project-card p {
-            color: #444;
-            font-size: 0.95rem;
-            line-height: 1.5;
+        .project-placeholder {
+            width: 100%;
+            height: 200px;
+            background-color: var(--border);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 3rem;
+            margin-bottom: 1rem;
         }
 
+        .project-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .project-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .project-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .project-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .project-status {
+            background: var(--mint);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .project-progress {
+            margin-top: auto;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-amount {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .progress-target {
+            font-weight: normal;
+        }
+
+        .progress-bar {
+            background: var(--border);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 4px;
+            transition: width 0.4s ease-in-out;
+        }
+
+        .progress-percent {
+            text-align: right;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .btn-donate {
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 0.75rem;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 1rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .btn-donate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .empty-state {
+            grid-column: 1/-1;
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--border);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }       
+       
         /* Optional fade-in animation */
         .fade-in {
             opacity: 0;
@@ -948,7 +1073,7 @@
     </nav>
 
     <!-- Hero Section -->
- <section class="hero">
+    <section class="hero">
         <!-- Background slideshow -->
         <div class="hero-bg-slideshow">
             <div class="hero-bg-slide active"></div>
@@ -1001,35 +1126,58 @@
     </section>
             
     <!-- Current Project -->
-    <section class="projects-section" id="projects">
-        <h2 class="section-title">Current Church Projects</h2>
+    <div class="projects-section">
+        <h2 class="section-title">Active Church Projects 🔨</h2>
         <div class="projects-grid">
-            @if(isset($projects) && count($projects))
-                @foreach ($projects as $project)
-                    <div class="project-card fade-in">
-                        <h3>{{ $project->name }}</h3>
-                        <p>{{ $project->description }}</p>
-                        <div class="progress-bar-container">
-                            @php
-                                $progress = $project->target_amount > 0
-                                    ? min(100, ($project->current_amount / $project->target_amount) * 100)
-                                    : 0;
-                            @endphp
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: {{ $progress }}%"></div>
-                            </div>
-                            <p>
-                                <strong>₱{{ number_format($project->current_amount, 2) }}</strong>
-                                of ₱{{ number_format($project->target_amount, 2) }}
-                            </p>
+            @forelse($projects as $project)
+                <div class="project-card">
+                    @if($project->image_url)
+                        <img src="{{ asset('storage/' . $project->image_url) }}" class="project-image" alt="{{ $project->name }}">
+                    @else
+                        <div class="project-placeholder">
+                            <i class="fas fa-image"></i>
                         </div>
+                    @endif
+                    <div class="project-content">
+                        <h3 class="project-title">{{ $project->name }}</h3>
+                        <p class="project-description">{{ Str::limit($project->description, 120) }}</p>
+
+                        <div class="project-meta">
+                            <span class="project-date">
+                                <i class="fas fa-calendar-alt"></i> Started: {{ \Carbon\Carbon::parse($project->start_date)->format('M j, Y') }}
+                            </span>
+                            <span class="project-status status-active">
+                                Active
+                            </span>
+                        </div>
+
+                        <div class="project-progress">
+                            <div class="progress-info">
+                                <span class="progress-amount">₱{{ number_format($project->raised_amount ?? 0, 2) }}</span>
+                                <span class="progress-target">Goal: ₱{{ number_format($project->goal_amount, 2) }}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: {{ $project->progress_percent }}%;"></div>
+                            </div>
+                            <div class="progress-percent">
+                                Progress: {{ number_format($project->progress_percent, 1) }}%
+                            </div>
+                        </div>
+                        
+                        <a href="#donation-section" class="btn-donate" data-project-id="{{ $project->id }}" data-project-name="{{ $project->name }}" onclick="prefillDonationForm(this)">
+                            <i class="fas fa-donate"></i> Donate to this Project
+                        </a>
                     </div>
-                @endforeach
-            @else
-                <p>No current projects available.</p>
-            @endif
+                </div>
+            @empty
+                <div class="empty-state">
+                    <i class="fas fa-hammer"></i>
+                    <h3>No Active Projects Yet</h3>
+                    <p>Check back soon for new church projects!</p>
+                </div>
+            @endforelse
         </div>
-    </section>
+    </div>
 
     <!-- Payment Methods Section -->
     <section id="payment-methods" class="payment-methods-section">
@@ -1343,6 +1491,38 @@
                     this.style.transform = '';
                 }, 150);
             });
+        });
+
+         //for the form
+        function prefillDonationForm(buttonElement) {
+            const projectId = buttonElement.getAttribute('data-project-id');
+            const projectName = buttonElement.getAttribute('data-project-name');
+
+            const purposeSelect = document.querySelector('select[name="purpose"]');
+            const projectSelect = document.querySelector('select[name="project_id"]');
+            const projectSelectionDiv = document.getElementById('project-selection');
+
+            // Step 1: Set the purpose to 'Church Project'
+            purposeSelect.value = 'church_project';
+            
+            // Step 2: Show the project selection field
+            projectSelectionDiv.style.display = 'block';
+
+            // Step 3: Set the selected project
+            projectSelect.value = projectId;
+
+            // Optional: Scroll to the form section
+            document.getElementById('donation-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Existing event listener to show/hide project selection
+        document.querySelector('select[name="purpose"]').addEventListener('change', function() {
+            const projectSelectionDiv = document.getElementById('project-selection');
+            if (this.value === 'church_project') {
+                projectSelectionDiv.style.display = 'block';
+            } else {
+                projectSelectionDiv.style.display = 'none';
+            }
         });
     </script>
 </body>

@@ -239,7 +239,7 @@
             cursor: pointer;
             color: var(--text-secondary);
             padding: 0.5rem;
-            border-radius: 500px%;
+            border-radius: 500px;
             transition: background-color 0.3s ease;
         }
 
@@ -334,6 +334,7 @@
             color: var(--text-primary);
         }
 
+        /* Add these styles to your existing <style> tag */
         .projects-section {
             background: var(--surface);
             padding: 2rem;
@@ -362,26 +363,91 @@
             padding: 1.5rem;
             border-radius: 10px;
             border: 1px solid var(--border);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .project-header {
-            display: flex;
-            justify-content: between;
-            align-items: center;
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+
+        .project-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
             margin-bottom: 1rem;
         }
 
+        .project-placeholder {
+            width: 100%;
+            height: 200px;
+            background-color: var(--border);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .project-content {
+            display: flex;
+            flex-direction: column;
+        }
+
         .project-title {
+            font-size: 1.25rem;
             font-weight: 600;
-            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .project-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .project-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
         }
 
         .project-status {
-            background: var(--success);
+            background: var(--mint);
             color: white;
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
             font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .project-progress {
+            margin-top: auto;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-amount {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .progress-target {
+            font-weight: normal;
         }
 
         .progress-bar {
@@ -389,22 +455,58 @@
             height: 8px;
             border-radius: 4px;
             overflow: hidden;
-            margin: 1rem 0;
+            margin-bottom: 0.5rem;
         }
 
         .progress-fill {
-            background: linear-gradient(90deg, var(--primary), var(--mint));
             height: 100%;
+            background: var(--accent);
             border-radius: 4px;
-            transition: width 0.3s ease;
+            transition: width 0.4s ease-in-out;
         }
 
-        .project-amounts {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
+        .progress-percent {
+            text-align: right;
+            font-size: 0.8rem;
             color: var(--text-secondary);
         }
+
+        .btn-donate {
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 0.75rem;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 1rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .btn-donate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .empty-state {
+            grid-column: 1/-1;
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--border);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }    
 
         .donation-section {
             display: grid;
@@ -657,38 +759,61 @@
             </div>
 
             <!-- Current Project -->
-            <section class="projects-section" id="projects">
-                <h2 class="section-title">Current Church Projects</h2>
+            <div class="projects-section">
+                <h2 class="section-title">Active Church Projects 🔨</h2>
                 <div class="projects-grid">
-                    @if(isset($projects) && count($projects))
-                        @foreach ($projects as $project)
-                            <div class="project-card fade-in">
-                                <h3>{{ $project->name }}</h3>
-                                <p>{{ $project->description }}</p>
-                                <div class="progress-bar-container">
-                                    @php
-                                        $progress = $project->target_amount > 0
-                                            ? min(100, ($project->current_amount / $project->target_amount) * 100)
-                                            : 0;
-                                    @endphp
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" style="width: {{ $progress }}%"></div>
-                                    </div>
-                                    <p>
-                                        <strong>₱{{ number_format($project->current_amount, 2) }}</strong>
-                                        of ₱{{ number_format($project->target_amount, 2) }}
-                                    </p>
+                    @forelse($projects as $project)
+                        <div class="project-card">
+                            @if($project->image_url)
+                                <img src="{{ asset('storage/' . $project->image_url) }}" class="project-image" alt="{{ $project->name }}">
+                            @else
+                                <div class="project-placeholder">
+                                    <i class="fas fa-image"></i>
                                 </div>
+                            @endif
+                            <div class="project-content">
+                                <h3 class="project-title">{{ $project->name }}</h3>
+                                <p class="project-description">{{ Str::limit($project->description, 120) }}</p>
+
+                                <div class="project-meta">
+                                    <span class="project-date">
+                                        <i class="fas fa-calendar-alt"></i> Started: {{ \Carbon\Carbon::parse($project->start_date)->format('M j, Y') }}
+                                    </span>
+                                    <span class="project-status status-active">
+                                        Active
+                                    </span>
+                                </div>
+
+                                <div class="project-progress">
+                                    <div class="progress-info">
+                                        <span class="progress-amount">₱{{ number_format($project->raised_amount ?? 0, 2) }}</span>
+                                        <span class="progress-target">Goal: ₱{{ number_format($project->goal_amount, 2) }}</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: {{ isset($project->progress_percent) ? $project->progress_percent : 0 }}%;"></div>
+                                    </div>
+                                    <div class="progress-percent">
+                                        Progress: {{ number_format($project->progress_percent, 1) }}%
+                                    </div>
+                                </div>
+                                
+                                <a href="#donation-section" class="btn-donate" data-project-id="{{ $project->id }}" data-project-name="{{ $project->name }}" onclick="prefillDonationForm(this)">
+                                    <i class="fas fa-donate"></i> Donate to this Project
+                                </a>
                             </div>
-                        @endforeach
-                    @else
-                        <p>No current projects available.</p>
-                    @endif
+                        </div>
+                    @empty
+                        <div class="empty-state">
+                            <i class="fas fa-hammer"></i>
+                            <h3>No Active Projects Yet</h3>
+                            <p>Check back soon for new church projects!</p>
+                        </div>
+                    @endforelse
                 </div>
-            </section>
+            </div>
 
             <!-- Donation Section -->
-            <div class="donation-section">
+            <div class="donation-section" id="donation-section">
                 <div class="qr-section">
                     <h3 class="section-title">Make a Donation</h3>
                     <div class="qr-tabs">
@@ -755,6 +880,16 @@
                                     <option value="pledge">Pledge</option>
                                     <option value="church_project">Church Project</option>
                                     <option value="others">Others</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="project-selection" style="display: none;">
+                                <label for="project_id">Select Project *</label>
+                                <select name="project_id" id="project_id">
+                                    <option value="">Choose a project...</option>
+                                    @foreach($projects as $project)
+                                        <option value="{{ $project->id }}">{{ $project->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
 
@@ -850,6 +985,21 @@
             trigger.classList.toggle('active');
         }
 
+        function toggleProjectSelection() {
+            const purpose = document.getElementById('purpose').value;
+            const projectSelection = document.getElementById('project-selection');
+            const projectSelect = document.getElementById('project_id');
+            
+            if (purpose === 'church_project') {
+                projectSelection.style.display = 'block';
+                projectSelect.required = true;
+            } else {
+                projectSelection.style.display = 'none';
+                projectSelect.required = false;
+                projectSelect.value = '';
+            }
+        }
+
         function openProfileModal() {
             const modal = document.getElementById('profileModal');
             const dropdown = document.getElementById('profileDropdown');
@@ -934,6 +1084,38 @@
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
             }, 2000);
+        });
+
+        //for the form
+        function prefillDonationForm(buttonElement) {
+            const projectId = buttonElement.getAttribute('data-project-id');
+            const projectName = buttonElement.getAttribute('data-project-name');
+
+            const purposeSelect = document.querySelector('select[name="purpose"]');
+            const projectSelect = document.querySelector('select[name="project_id"]');
+            const projectSelectionDiv = document.getElementById('project-selection');
+
+            // Step 1: Set the purpose to 'Church Project'
+            purposeSelect.value = 'church_project';
+            
+            // Step 2: Show the project selection field
+            projectSelectionDiv.style.display = 'block';
+
+            // Step 3: Set the selected project
+            projectSelect.value = projectId;
+
+            // Optional: Scroll to the form section
+            document.getElementById('donation-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Existing event listener to show/hide project selection
+        document.querySelector('select[name="purpose"]').addEventListener('change', function() {
+            const projectSelectionDiv = document.getElementById('project-selection');
+            if (this.value === 'church_project') {
+                projectSelectionDiv.style.display = 'block';
+            } else {
+                projectSelectionDiv.style.display = 'none';
+            }
         });
     </script>
 </body>
